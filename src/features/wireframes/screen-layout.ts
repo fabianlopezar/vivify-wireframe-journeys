@@ -21,7 +21,7 @@ export function buildScreenLayout(elements:WireframeElement[]):LayoutNode[][] {
  // A repeated item's following action belongs to that item on the web layout.
  for(let i=0;i<nodes.length-1;i++){
   const n=nodes[i],next=nodes[i+1];
-  if(n.type==='card'&&next.type==='control'&&next.children.some(p=>p.text==='Ver detalle')){n.action=next.element;n.children.push(...next.children);nodes.splice(i+1,1);}
+  if(n?.type==='card'&&next?.type==='control'&&next.children.some(p=>p.text==='Ver detalle')){n.action=next.element;n.children.push(...next.children);nodes.splice(i+1,1);}
  }
  const rows:LayoutNode[][]=[];
  for(const node of nodes){
