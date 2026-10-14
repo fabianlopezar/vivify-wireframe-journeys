@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PantallasPantallaRouteImport } from './routes/pantallas.$pantalla'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PantallasPantallaRoute = PantallasPantallaRouteImport.update({
+  id: '/pantallas/$pantalla',
+  path: '/pantallas/$pantalla',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/pantallas/$pantalla': typeof PantallasPantallaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/pantallas/$pantalla': typeof PantallasPantallaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/pantallas/$pantalla': typeof PantallasPantallaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/pantallas/$pantalla'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/pantallas/$pantalla'
+  id: '__root__' | '/' | '/pantallas/$pantalla'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PantallasPantallaRoute: typeof PantallasPantallaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pantallas/$pantalla': {
+      id: '/pantallas/$pantalla'
+      path: '/pantallas/$pantalla'
+      fullPath: '/pantallas/$pantalla'
+      preLoaderRoute: typeof PantallasPantallaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PantallasPantallaRoute: PantallasPantallaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
