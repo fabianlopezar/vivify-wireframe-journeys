@@ -1,3 +1,3 @@
 - Keep uploaded wireframe content and geometry in a shared screen definition; derive semantic groups for responsive web layouts so desktop and mobile share content and interactions.
-- Prototype interactions use session-only React context, not persistent storage, because real accounts and saved bookings are outside the confirmed scope.
-- Render named wireframe screens through the typed `/pantallas/$pantalla` route with screen-specific metadata; `/` opens provider exploration.
+- Prototype interactions use session-only React context with hardcoded demo data (`src/features/wireframes/domain.ts` + `store.tsx`), not persistent storage, because real accounts and saved bookings are outside the confirmed scope.
+- Render named wireframe screens through the typed `/pantallas/$pantalla` route with screen-specific metadata; `/` opens provider exploration. Functional HU screens (`hu-screens.tsx`) share the same route, layout and navigation.
