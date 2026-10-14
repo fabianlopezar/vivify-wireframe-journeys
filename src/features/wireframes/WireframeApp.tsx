@@ -1,7 +1,9 @@
-import { createContext, useContext, useState, type ReactNode, type CSSProperties } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import definitions from './screens.json';
+import { buildScreenLayout, type LayoutNode } from './screen-layout';
+import { Search, Users, CalendarDays, Inbox, ArrowRight, House, UserRound, ImageIcon } from 'lucide-react';
 
 type Element = {kind:string;x:number;y:number;w:number;h:number;text:string;bold:boolean;size:number;color:string;border:string;classes:string};
 type Screen = {name:string;title:string;height:number;elements:Element[]};
@@ -27,7 +29,6 @@ const routes:Record<string,Record<string,string>>={
  RespuestaEnviada:{'Volver a solicitudes recibidas':'SolicitudesRecibidas'},ContrapropuestaDelProveedor:{Aceptar:'AceptarContrapropuesta',Rechazar:'RechazarContrapropuesta'},
  AceptarContrapropuesta:{Confirmar:'ResultadoRegistrado',Cancelar:'ContrapropuestaDelProveedor'},RechazarContrapropuesta:{'Confirmar rechazo':'ResultadoRegistrado',Cancelar:'ContrapropuestaDelProveedor'},ResultadoRegistrado:{'Ver mis solicitudes':'MisSolicitudesYReservas'}
 };
-function geometry(e:Element):CSSProperties {return {left:`${e.x/4.2}%`,top:e.y,width:e.w?`${e.w/4.2}%`:undefined,height:e.h||undefined,'--text-size':`${e.size}px`} as CSSProperties;}
 export function WireframeApp({screen}:{screen:string}) {
  const data=screens[screen];const navigate=useNavigate();const demo=useContext(DemoContext);const [filter,setFilter]=useState('Todas');const [mode,setMode]=useState('Por nombre');
  if(!data)return <main className="wireframe-notfound"><h1>Pantalla no encontrada</h1><Button onClick={()=>navigate({to:'/'})}>Volver al inicio</Button></main>;
@@ -65,31 +66,39 @@ export function WireframeApp({screen}:{screen:string}) {
   if(demo.fields['Nueva hora'])t=t.replace('5:00 p.m.',demo.fields['Nueva hora']);
   return t;
  }
- function fieldFor(e:Element){
-  if(e.kind!=='div'||e.border!=='999999'||e.h<32)return null;
-  return data?.elements.filter(p=>p.kind==='p'&&p.y<e.y&&p.x===e.x).at(-1)?.text ?? null;
- }
  const provider=data.elements.some(e=>e.text==='PROVEEDOR');
- const elements=data.elements;
- return <div className="prototype-layout"><aside className="prototype-nav"><strong>Servicios a domicilio</strong><nav aria-label="Navegación principal"><Button variant="wireframe" onClick={()=>navigate({to:'/'})}>Explorar proveedores</Button><Button variant="wireframe" onClick={()=>go('BsquedaDeServicios')}>Buscar servicios</Button><Button variant="wireframe" onClick={()=>go('MisSolicitudesYReservas')}>Mis solicitudes y reservas</Button><Button variant="wireframe" onClick={()=>go('SolicitudesRecibidas')}>Solicitudes recibidas</Button></nav></aside>
- <main className="wireframe-screen" style={{minHeight:data.height}} aria-label={data.title}>
- <form onSubmit={ev=>{ev.preventDefault();const target=screen==='FormularioDeSolicitud'?'RevisinDeSolicitud':screen==='ProponerNuevoHorario'?'RespuestaEnviada':screen==='RechazarSolicitud'?'RespuestaEnviada':'ResultadosDeBsqueda';if(screen==='ProponerNuevoHorario')demo.setStatus('Sugerida');if(screen==='RechazarSolicitud')demo.setStatus('Rechazada');go(target);}}>
- {elements.map((e,index)=>{
-  const style=geometry(e); const field=fieldFor(e);
-  if(field){const search=['Buscar proveedor o servicio','Término de búsqueda'].includes(field);const key=field as keyof typeof initial; const type=field.includes('fecha')||field==='Fecha'?'date':field.includes('hora')||field==='Hora'?'time':'text'; const props={id:`field-${index}`,'aria-label':field,required:!search&&!['Información complementaria para ubicar el lugar','Observaciones adicionales'].includes(field),value:search?demo.query:demo.fields[key]||'',onChange:(ev:React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>)=>search?demo.setQuery(ev.target.value):demo.setFields({...demo.fields,[key]:ev.target.value}),className:'wireframe-field wireframe-position',style};return e.h>=60?<textarea key={index} {...props}/>:<input key={index} {...props} type={type}/>;}
-  if(e.kind==='div'){
-   const label=elements.find(p=>p.kind==='p'&&p.y>=e.y&&p.y<e.y+e.h&&p.x>=e.x&&p.x<e.x+e.w);
-   const isButton=label&&(routes[screen]?.[label.text]||['Manicure','Masajes','Peluquería','Otros','Por nombre','Por categoría','Todas','Pendientes','Sugeridas','Aceptadas','Completadas','Canceladas'].includes(label.text))&&e.h<=40;
-   if(isButton&&label){const submit=(screen==='FormularioDeSolicitud'&&label.text==='Continuar')||(screen==='ProponerNuevoHorario'&&label.text==='Enviar propuesta')||(screen==='RechazarSolicitud'&&label.text==='Confirmar rechazo');return <Button key={index} style={style} className="wireframe-position" variant={e.color==='333333'||filter===label.text||mode===label.text?'wireframePrimary':'wireframe'} type={submit?'submit':'button'} onClick={submit?undefined:()=>action(label.text,e)}>{label.text}</Button>;}
-   const card=e.h>=54&&e.color==='gray50';
-   if(card&&screen==='MisSolicitudesYReservas'&&filter!=='Todas') {const state=elements.find(p=>p.y>=e.y&&p.y<e.y+e.h&&['Pendiente','Sugerida','Completada'].includes(p.text))?.text;if(state&&filter!==`${state}s`)return null;}
-   return <div key={index} style={style} className={`wireframe-position wireframe-rectangle tone-${e.color} edge-${e.border||'none'} ${card?'wireframe-item':''}`} onClick={card&&screen==='ExploracinDeProveedores'?()=>{const name=label?.text;if(name)demo.setProvider(name);go('PerfilDelProveedor');}:card&&screen==='MisSolicitudesYReservas'?()=>go('DetalleDeSolicitudreserva'):undefined} role={card&&['ExploracinDeProveedores','MisSolicitudesYReservas'].includes(screen)?'link':undefined} tabIndex={card&&['ExploracinDeProveedores','MisSolicitudesYReservas'].includes(screen)?0:undefined} onKeyDown={ev=>{if(ev.key==='Enter'&&card)go(screen==='ExploracinDeProveedores'?'PerfilDelProveedor':'DetalleDeSolicitudreserva');}}/>;
+ const navigation=[{label:'Explorar proveedores',screen:'ExploracinDeProveedores',icon:Users},{label:'Buscar servicios',screen:'BsquedaDeServicios',icon:Search},{label:'Mis solicitudes y reservas',screen:'MisSolicitudesYReservas',icon:CalendarDays},{label:'Solicitudes recibidas',screen:'SolicitudesRecibidas',icon:Inbox}];
+ const active=provider?'SolicitudesRecibidas':['MisSolicitudesYReservas','DetalleDeSolicitudreserva','ContrapropuestaDelProveedor','AceptarContrapropuesta','RechazarContrapropuesta','ResultadoRegistrado'].includes(screen)?'MisSolicitudesYReservas':screen==='BsquedaDeServicios'?'BsquedaDeServicios':'ExploracinDeProveedores';
+ const submit=(text:string)=>(screen==='FormularioDeSolicitud'&&text==='Continuar')||(screen==='ProponerNuevoHorario'&&text==='Enviar propuesta')||(screen==='RechazarSolicitud'&&text==='Confirmar rechazo');
+ function control(label:Element,e:Element){
+  const selected=filter===label.text||mode===label.text;
+  return <Button key={label.text} variant={e.color==='333333'||selected?'wireframePrimary':'wireframe'} className="web-action" type={submit(label.text)?'submit':'button'} aria-pressed={['Todas','Pendientes','Sugeridas','Aceptadas','Completadas','Canceladas','Por nombre','Por categoría'].includes(label.text)?selected:undefined} onClick={submit(label.text)?undefined:()=>action(label.text,e)}>{label.text}{routes[screen]?.[label.text]&&<ArrowRight size={16}/>}</Button>;
+ }
+ function renderNode(node:LayoutNode,index:number){
+  const e=node.element;
+  if(node.type==='field'&&node.field){
+   const field=node.field,search=['Buscar proveedor o servicio','Término de búsqueda'].includes(field),key=field as keyof typeof initial;
+   const type=field.includes('fecha')||field==='Fecha'?'date':field.includes('hora')||field==='Hora'?'time':'text';
+   const props={id:`field-${index}`,required:!search&&!['Información complementaria para ubicar el lugar','Observaciones adicionales'].includes(field),value:search?demo.query:demo.fields[key]||'',onChange:(ev:React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>)=>search?demo.setQuery(ev.target.value):demo.setFields({...demo.fields,[key]:ev.target.value}),className:'web-field'};
+   return <div className={`web-field-group ${search||e.h>=60?'web-field-wide':''}`} key={index}><label htmlFor={props.id}>{field}</label>{e.h>=60?<textarea {...props} rows={4}/>:<input {...props} type={type}/>}</div>;
   }
-  const rect=elements.find(r=>r.kind==='div'&&e.y>=r.y&&e.y<r.y+r.h&&e.x>=r.x&&e.x<r.x+r.w&&r.h<=40);
-  if(rect&&(routes[screen]?.[e.text]||['Manicure','Masajes','Peluquería','Otros','Por nombre','Por categoría','Todas','Pendientes','Sugeridas','Aceptadas','Completadas','Canceladas'].includes(e.text)))return null;
-  if(screen==='MisSolicitudesYReservas'&&filter!=='Todas'){const card=elements.find(r=>r.kind==='div'&&r.h>=54&&e.y>=r.y&&e.y<r.y+r.h);if(card){const state=elements.find(p=>p.y>=card.y&&p.y<card.y+card.h&&['Pendiente','Sugerida','Completada'].includes(p.text))?.text;if(state&&filter!==`${state}s`)return null;}}
-  return <p key={index} style={style} className={`wireframe-position wireframe-text ink-${e.color} ${e.bold?'wireframe-bold':''}`}>{content(e.text)}</p>;
- })}
- </form>
- </main><footer className="prototype-footer"><span>{provider?'PROVEEDOR':'CLIENTE'}</span><Button variant="wireframe" onClick={()=>navigate({to:'/'})}>Volver al inicio</Button></footer></div>;
+  if(node.type==='control'){const label=node.children.find(p=>p.kind==='p');if(!label)return null;const isAction=routes[screen]?.[label.text]||['Manicure','Masajes','Peluquería','Otros','Por nombre','Por categoría','Todas','Pendientes','Sugeridas','Aceptadas','Completadas','Canceladas'].includes(label.text);return isAction?control(label,e):<span key={index} className="web-status">{content(label.text)}</span>;}
+  if(node.type==='card'){
+   const state=node.children.find(p=>['Pendiente','Sugerida','Completada','Aceptada'].includes(p.text));
+   if(screen==='MisSolicitudesYReservas'&&filter!=='Todas'&&state&&filter!==`${state.text}s`)return null;
+   const texts=node.children.filter(p=>p.kind==='p'&&p.text!=='Ver detalle');
+   const clickable=['ExploracinDeProveedores','MisSolicitudesYReservas'].includes(screen);
+   const open=()=>{if(screen==='ExploracinDeProveedores'){demo.setProvider(texts[0]?.text||demo.provider);go('PerfilDelProveedor');}else go('DetalleDeSolicitudreserva');};
+   return <article key={index} className="web-item">{screen==='ExploracinDeProveedores'&&<div className="web-avatar"><UserRound size={24}/></div>}<div className="web-item-content">{texts.map((p,i)=>i===0?<h2 key={i}>{content(p.text)}</h2>:<p key={i} className={p===state?'web-status':'web-detail'}>{content(p.text)}</p>)}</div>{node.action?control(node.children.find(p=>p.text==='Ver detalle')||e,node.action):clickable?<Button variant="wireframe" className="web-action" onClick={open}>Ver detalle<ArrowRight size={16}/></Button>:null}</article>;
+  }
+  if(node.type==='media')return <div key={index} className="web-media"><ImageIcon size={40}/>{node.children.filter(p=>p.kind==='p').map((p,i)=><span key={i}>{content(p.text)}</span>)}</div>;
+  if(node.type==='status')return null;
+  return e.bold?<h2 key={index} className="web-section-title">{content(e.text)}</h2>:<p key={index} className="web-copy">{content(e.text)}</p>;
+ }
+ const rows=buildScreenLayout(data.elements);
+ return <div className="prototype-layout"><aside className="prototype-nav"><div className="web-brand"><House size={25}/><strong>Servicios<br/>a domicilio</strong></div><nav aria-label="Navegación principal">{navigation.map(item=><Button key={item.screen} variant={active===item.screen?'wireframePrimary':'wireframe'} aria-current={active===item.screen?'page':undefined} onClick={()=>go(item.screen)}><item.icon size={18}/>{item.label}</Button>)}</nav><div className="web-role"><UserRound size={18}/>{provider?'Proveedor':'Cliente'}</div></aside>
+ <div className="web-workspace"><header className="web-page-header"><div><span className="web-eyebrow">Servicios a domicilio</span><h1>{data.title}</h1></div><span className="web-role-badge">{provider?'PROVEEDOR':'CLIENTE'}</span></header>
+ <main className="wireframe-screen" aria-label={data.title}><form onSubmit={ev=>{ev.preventDefault();const target=screen==='FormularioDeSolicitud'?'RevisinDeSolicitud':screen==='ProponerNuevoHorario'?'RespuestaEnviada':screen==='RechazarSolicitud'?'RespuestaEnviada':'ResultadosDeBsqueda';if(screen==='ProponerNuevoHorario')demo.setStatus('Sugerida');if(screen==='RechazarSolicitud')demo.setStatus('Rechazada');go(target);}}>
+ {rows.map((row,i)=><div key={i} className={`web-row web-row-${row[0]?.type} ${row.length>1?'web-row-multiple':''}`}>{row.map((node,j)=>renderNode(node,i*100+j))}</div>)}
+ </form></main><footer className="prototype-footer"><span>Servicios a domicilio</span><Button variant="wireframe" onClick={()=>navigate({to:'/'})}><House size={15}/>Volver al inicio</Button></footer></div></div>;
 }
